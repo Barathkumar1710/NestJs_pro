@@ -10,4 +10,5 @@ export class FollowEntity {
 
   @Column()
   followingId: number;
+  
 }
