@@ -16,29 +16,49 @@ import { AuthGuard } from '../user/guards/auth/auth.guard';
 
 import { CreateArticleDto } from './dto/createArticle.dto';
 
-import { ArticleResponse } from './types/articleResponse.interface';
+// import { ArticleResponse } from './types/articleResponse.interface';
 import { ArticlesResponse } from './types/articlesResponse.interface';
 import { User } from '@app/user/decorator/user/user.decorator';
 import { Users } from '@app/user/entity/user.entity';
+import { BackendValidationPipe } from '@app/shared/pipes/backendvalidation.pipe';
 
 @Controller('articles')
 export class ArticleController {
   constructor(private readonly articleService: ArticleService) {}
 
+  @Get()
+  @UseGuards(AuthGuard)
+  async findAll(
+    @User('id') userId: number,
+    @Query() query: any,
+  ): Promise<ArticlesResponse> {
+    console.log(userId,'userIddddddddddddd');
+    
+    return await this.articleService.findAll(userId, query);
+  }
+
+  @Get('feed')
+  @UseGuards(AuthGuard)
+  async getFeed(
+    @User('id') currentUserId: number,
+    @Query() query: any,
+  ): Promise<ArticlesResponse> {
+    return await this.articleService.getFeed(currentUserId, query);
+  }
+  
   @Post()
-  @UsePipes(ValidationPipe)
+  @UsePipes(BackendValidationPipe)
   // authGuard will check if the user is authenticated
   @UseGuards(AuthGuard)
   async createArticle(
     @User() user: Users,
     @Body('article') createArticleDto: CreateArticleDto,
-  ): Promise<ArticleResponse> {
+  ): Promise<any> {
     const article = await this.articleService.createArticle(
       user,
       createArticleDto,
     );
     console.log(user, 'usersata');
-
     return this.articleService.buildArticleResponse(article);
   }
 
@@ -56,7 +76,7 @@ export class ArticleController {
 
   @Put(':slug')
   @UseGuards(AuthGuard)
-  @UsePipes(ValidationPipe)
+  @UsePipes(BackendValidationPipe)
   async updateArticle(
     @User('id') userId: number,
     @Param('slug') slug: string,
@@ -70,14 +90,6 @@ export class ArticleController {
     return this.articleService.buildArticleResponse(article);
   }
 
-  @Get()
-  @UseGuards(AuthGuard)
-  async findAll(
-    @User('id') userId: number,
-    @Query() query: any,
-  ): Promise<ArticlesResponse[]> {
-    return await this.articleService.findAll(userId, query);
-  }
 
   @Post(':slug/favorite')
   @UseGuards(AuthGuard)
@@ -93,8 +105,10 @@ export class ArticleController {
   async unfavoriteArticle(
     @User('id') userId: number,
     @Param('slug') slug: string,
-  ): Promise<ArticleResponse> {
+  ): Promise<any> {
     const article = await this.articleService.unfavoriteArticle(slug, userId);
     return this.articleService.buildArticleResponse(article);
   }
+
+ 
 }

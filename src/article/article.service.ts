@@ -8,6 +8,7 @@ import slugify from 'slugify';
 import { ArticlesResponse } from './types/articlesResponse.interface';
 import { ArticleEntity } from './entity/article.entity';
 import { Users } from '@app/user/entity/user.entity';
+import { FollowEntity } from '@app/profile/entity/follow.entity';
 
 @Injectable()
 export class ArticleService {
@@ -16,6 +17,8 @@ export class ArticleService {
     private articleRepository: Repository<ArticleEntity>,
     @InjectRepository(Users)
     private usersRepository: Repository<Users>,
+    @InjectRepository(FollowEntity)
+    private readonly followRepository: Repository<FollowEntity>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -110,7 +113,7 @@ export class ArticleService {
     return await this.articleRepository.save(article);
   }
 
-  async   findAll(userId: number, query: any): Promise<any> {
+  async findAll(userId: number, query: any): Promise<any> {
     const queryBuilder = await this.dataSource
       .getRepository(ArticleEntity)
       .createQueryBuilder('article')
@@ -127,12 +130,15 @@ export class ArticleService {
 
     // Filter by author
     if (query?.author) {
+      console.log(true);
       const author = await this.usersRepository.findOne({
         where: { username: query?.author },
       });
-      queryBuilder.andWhere('author.id = :author', { author: author?.id });
+      queryBuilder.andWhere('article.authorId = :id', { id: author?.id });
       // queryBuilder.andWhere('author.username LIKE :author', { author: `%${query.author}%` })
     }
+    console.log(queryBuilder,'que8888888888ryBuilder');
+    
 
     // filter by favorited
     if (query?.favorited) {
@@ -140,8 +146,6 @@ export class ArticleService {
         where: { username: query?.favorited },
         relations: ['favorites'],
       });
-
-      console.log(author?.favorites, 'author?.favorites');
 
       const ids = author?.favorites.map((favorite) => favorite.id);
 
@@ -181,13 +185,13 @@ export class ArticleService {
       favoriteIds = user.favorites.map((favorite) => favorite.id);
     }
     console.log(favoriteIds, 'favoriteIds');
-    
+
     const articles = await queryBuilder.getMany();
     // map the articles to add the Favorited property to each article
     const articleWithFavorites = articles.map((article) => {
       const Favorited = favoriteIds.includes(article.id);
       console.log(Favorited, 'Favorited');
-      
+
       return { ...article, Favorited };
     });
 
@@ -240,4 +244,49 @@ export class ArticleService {
 
     return article;
   }
+
+  async getFeed(currentUserId: number, query: any): Promise<ArticlesResponse> {
+    try {
+      console.log('Fetching feed for user:', currentUserId);
+  
+      // Get all users that the current user is following
+      const follows = await this.followRepository.find({
+        where: { followerId: currentUserId },
+      });
+  
+      if (follows.length === 0) {
+        return { articles: [], articlesCount: 0 };
+      }
+  
+      // Create an array of the ids of the users that the current user is following
+      const followingIds = follows.map((follow) => follow.followingId);
+  
+      // Create the query builder to fetch articles
+      const queryBuilder = this.dataSource
+        .getRepository(ArticleEntity)
+        .createQueryBuilder('article')
+        .leftJoinAndSelect('article.author', 'author')
+        .where('article.authorId IN (:...ids)', { ids: followingIds })
+        .orderBy('article.createdAt', 'DESC');
+        
+        const articlesCount = await queryBuilder.getCount();
+        
+      // Apply limit and offset if provided
+      if (query?.limit) {
+        queryBuilder.limit(query.limit);
+      }
+  
+      if (query?.offset) {
+        queryBuilder.offset(query.offset);
+      }
+  
+      const articles = await queryBuilder.getMany();
+  
+      return { articles, articlesCount };
+    } catch (error) {
+      console.error('Error fetching feed:', error);
+      throw error;
+    }
+  }
+  
 }

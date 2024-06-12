@@ -5,7 +5,7 @@ export class SeedDb1717652501183 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `INSERT INTO tags (name) VALUES ('reactjs'), ('angularjs'), ('vuejs')`,
+      `INSERT INTO tag (name) VALUES ('reactjs'), ('angularjs'), ('vuejs')`,
     );
     await queryRunner.query(
       `INSERT INTO users (username, email, password, bio, image) VALUES ('Barathumar17', 'barathkumar123@gmail.com', '$2b$10$AsIohKB0ImbfN7jTFF2h7eJaWVOI/pLH8qqH2dJe2Jvd9KhxXzENW', 'test1', 'test222')`,

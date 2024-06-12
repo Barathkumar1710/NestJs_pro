@@ -17,23 +17,26 @@ import { LoginUserDTO } from './dto/loginUser.dto';
 import { ExpressRequest } from '@app/types/expressRequest.interface';
 import { User } from './decorator/user/user.decorator';
 import { AuthGuard } from './guards/auth/auth.guard';
+import { BackendValidationPipe } from '@app/shared/pipes/backendvalidation.pipe';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly usersService: UserService) {}
   @Post()
   // validate the request body using the validation pipe
-  @UsePipes(ValidationPipe)
+  @UsePipes(BackendValidationPipe)
   async createUser(
     @Body('user') registerUserDto: RegisterUserDTO,
   ): Promise<UserResponse> {
+    console.log("inside user controller...")
     const user = await this.usersService.registerUser(registerUserDto);
     return this.usersService.buildUserResponse(user);
   }
 
   @Post('login')
   // validate the request body using the validation pipe
-  @UsePipes(ValidationPipe)
+  // backend validation pipe is used to validate the request body
+  @UsePipes(BackendValidationPipe)
   async loginUser(
     @Body('user') loginUserDto: LoginUserDTO,
   ): Promise<UserResponse> {
@@ -51,7 +54,7 @@ export class UserController {
 
   @Put('user')
   @UseGuards(AuthGuard)
-  @UsePipes(ValidationPipe)
+  @UsePipes(BackendValidationPipe)
   async updateCurrentUser(
     @User('id', ParseIntPipe) currentUserId: number,
     @Body('user') updateUserDto: RegisterUserDTO,

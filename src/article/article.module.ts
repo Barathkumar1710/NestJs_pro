@@ -5,10 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArticleEntity } from './entity/article.entity';
 import { DataSource } from 'typeorm';
 import { Users } from '@app/user/entity/user.entity';
+import { FollowEntity } from '@app/profile/entity/follow.entity';
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ArticleEntity, Users])],
+  imports: [TypeOrmModule.forFeature([ArticleEntity, Users, FollowEntity])],
   controllers: [ArticleController],
   providers: [ArticleService],
   exports:[ArticleService]
