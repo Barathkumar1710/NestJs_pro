@@ -15,42 +15,49 @@ export class UserService {
   ) {}
 
   async registerUser(registerUserDto: RegisterUserDTO): Promise<Users> {
-    const errorResponse = {
-      errors: {},
-    };
-    // Check if the user email already exists in the database
-    const userByEmail = await this.userRepository.findOne({
-      where: { email: registerUserDto.email },
-    });
-    // Check if the username already exists in the database
-    const userByUsername = await this.userRepository.findOne({
-      where: { username: registerUserDto.username },
-    });
+    try {
+      console.log(true);
+      const errorResponse = {
+        errors: {},
+      };
+      // Check if the user email already exists in the database
+      const userByEmail = await this.userRepository.findOne({
+        where: { email: registerUserDto.email },
+      });
+      // Check if the username already exists in the database
+      const userByUsername = await this.userRepository.findOne({
+        where: { username: registerUserDto.username },
+      });
+  
+      if (userByEmail) {
+        errorResponse.errors['email'] = 'Email has already been taken';
+      }
+      if (userByUsername) {
+        errorResponse.errors['username'] = 'Username has already been taken';
+      }
+  
+      if (userByEmail || userByUsername) {
+        throw new HttpException(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+      }
+  
+      // if (userByEmail || userByUsername) {
+      //   throw new HttpException(
+      //     'Email or username already exists',
+      //     // 422 Unprocessable Entity
+      //     HttpStatus.UNPROCESSABLE_ENTITY,
+      //   );
+      // }
+  
+      // create a new user instance and assign the values from the registerUserDto
+      const newUser = new Users();
+      Object.assign(newUser, registerUserDto);
+      // save the new user instance to the database
+      return await this.userRepository.save(newUser);
 
-    if (userByEmail) {
-      errorResponse.errors['email'] = 'Email has already been taken';
+    } catch (error) {
+      console.log("error..", error)
+      throw error
     }
-    if (userByUsername) {
-      errorResponse.errors['username'] = 'Username has already been taken';
-    }
-
-    if (userByEmail || userByUsername) {
-      throw new HttpException(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-
-    // if (userByEmail || userByUsername) {
-    //   throw new HttpException(
-    //     'Email or username already exists',
-    //     // 422 Unprocessable Entity
-    //     HttpStatus.UNPROCESSABLE_ENTITY,
-    //   );
-    // }
-
-    // create a new user instance and assign the values from the registerUserDto
-    const newUser = new Users();
-    Object.assign(newUser, registerUserDto);
-    // save the new user instance to the database
-    return await this.userRepository.save(newUser);
   }
 
   generateJwtToken(user: Users): string {
@@ -94,7 +101,7 @@ export class UserService {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    // Check if the password is correct
+    // Check if the password is correct and return the user if it is correct
     const isPasswordCorrect = await compare(
       loginUserDto.password,
       user.password,

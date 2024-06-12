@@ -1,0 +1,309 @@
+# Notes
+
+## 1. What are the technologies we will use?
+
+- NestJS, Why not entirely Express? - Because Express is very bare minimum
+- Database - Postgresql (Open source relational DB)
+- TypeORM - ORM for interacting with Database
+- TypeScript
+
+## 2. What we will be implementing?
+
+- demo: https://demo.realworld.io/#/
+- api spec: https://realworld-docs.netlify.app/docs/specs/backend-specs/introduction
+  - raw api spec: https://github.com/gothinkster/realworld/tree/main/apps/documentation/docs (If the above link is not working)
+- we will not build the frontend but we will use the existing frontend code from the source above
+- we will only build the backend using NestJS
+
+## 3. Prerequisites
+
+- NodeJS
+- Follow nest installation guide from: https://docs.nestjs.com/
+- postman
+
+## 4. Module, controllers and providers
+
+- A module is a class annotated with a @Module() decorator. The @Module() decorator provides metadata that Nest makes use of to organize the application structure.
+- Controllers are responsible for handling incoming requests and returning responses to the client.
+
+## 5. Build Tag Module
+
+## 6. Create Tag Service
+
+## 7. Configuring absolute path and the start script
+
+- use module-alias package for supporting absolute path for the JS files
+- configure paths in tsconfig.json file for supporting absolute path for the ts files
+- `ts-node`: ts-node is a TypeScript execution engine and REPL for Node.js. And used for dev mode
+- `tsconfig-paths`: Use this to load modules whose location is specified in the paths section of tsconfig.json
+- use nodemon package for using watch mode while starting server in dev
+
+## 8. Postgres setup
+
+- why postgres? a relational db? and not document based db e.g: MongoDB?
+
+  - because MongoDB does not have schema by default. Although relations b/w documents can be built with mongo, still it will need some additional efforts but with Postgres, it is very easy to build relations b/w tables.
+
+- why postgres? why not other relational db like MySQL?
+
+  - MySQL is also a good choice but Postgres is more advanced and has more features than MySQL. MySQL is more suitable for small scale applications.
+
+- download and isntall postgresql on your machine
+
+  - https://www.postgresql.org/download/macosx/
+
+- commands:
+
+  - `sudo -u postgres psql`: login to postgres
+  - `\l`: list all databases
+  - `\c <db_name>`: connect to a database
+  - `\dt`: list all tables in the database
+  - `\du`: list all users
+  - Create database: `CREATE DATABASE <db_name>;`
+  - `\q`: quit
+
+- commands I followed:
+  - login: `sudo -u kirandash psql -U kirandash -d postgres`
+    - here `kirandash` is the postgres username and `postgres` is the database name
+  - create database: `create database mediumclone;`
+  - create user: `create user mediumclone with encrypted password 'mediumclone';`
+  - grant privileges: `grant all privileges on database mediumclone to mediumclone;`
+    - check if the privileges are granted: `\l`
+
+## 9 DB connection in NestJS
+
+- `pnpm add @nestjs/typeorm typeorm pg`
+- we will use https://typeorm.io/ for interacting with the postgresql database
+
+## 10 Create Tag Entity
+
+- https://typeorm.io/entities
+- Entity is a class that maps to a database table (or collection when using MongoDB). You can create an entity by defining a new class and mark it with @Entity()
+- connect to db: `\c mediumclone`
+- `\dt`: list all tables
+- `\d tag`: describe tag table
+
+## 11 Create Tag Repository
+
+- Populate data:
+  - Add data to the table tag: `insert into tag (name) values ('javascript');`
+  - to see data: `select * from tag;`
+- https://docs.nestjs.com/techniques/database#repository-pattern
+
+- Repository pattern:
+  - `forFeature()` method is used to define which repositories are registered in the current scope
+  - inject the `tagRepository` into the `TagService` using the `@InjectRepository()` decorator
+- Once data is fetched inside service, modify the response in controller to match the API spec. Note: don't modify the response in service, keep it as it is. Modify the response in controller. Since service can be reused in other places as well.
+
+## 12 Setting up and working with migrations
+
+- add `db:drop` script in package.json using `typeorm` cli
+  - run `pnpm db:drop` to drop the tables
+- add `db:create` script in package.json using `typeorm` cli for migrations
+  - run: `pnpm db:create src/migrations/Tags` to generate the migrations: here `src/migrations/Tags` is the path where the migration file will be generated and `Tags` is the name of the migration file which can be anything
+- add `db:migrate` script in package.json using `typeorm` cli for migrations
+  - run: `pnpm db:migrate` to run the migrations
+- To check if the migrations are run successfully, check the tables in the database
+  - run: `\dt` to list all tables
+  - run: `\d tag` to describe the tag table
+  - run: `select * from tag;` to see the data in the tag table
+  - run: `select * from migrations;` to see the migrations history
+- Note: Always commit the migrations files to the git
+- In dev mode or prod mode, you can always clone the repo from git, then drop the tables and run the migrations to create the tables
+
+## 13 Authentication: Start creating user module, controller and service
+
+- spec: https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#registration
+- generate user module: `nest g mo user`
+- generate user controller: `nest g co user`
+- generate user service: `nest g s user`
+
+## 14 Create DTO - RegisterUserDto for type check of request payload
+
+- DTO: Data Transfer Object is an object that carries data between processes. The data is transferred in the form of objects. It is used to encapsulate the data and send it over the network.
+  - Note: It's recommended to use class for DTO rather than interface because interface is not available at runtime as it is not part of javascript. So, if you want to use the class for validation, you should use class for DTO. Because class is available at runtime as it is part of javascript.
+- https://docs.nestjs.com/controllers#request-payloads
+- Read more about request object at: https://docs.nestjs.com/controllers#request-object
+
+## 15 Create Users Entity
+
+- user entity to define the users table schema
+- create users entity
+- create new db migration: `pnpm db:create src/migrations/CreateUsers`
+- run the migration: `pnpm db:migrate`
+
+## 16 Fix the response to match API spec and add jwt token
+
+- add jwt token to response
+- library: https://github.com/auth0/node-jsonwebtoken
+- create userResponse.interface for response type in user service and user.type for type of user object in user entity except the hashPassword field
+
+## 17 Validation with Pipes and Exception Handling
+
+- https://docs.nestjs.com/pipes
+- A pipe is a class annotated with the @Injectable() decorator, which implements the PipeTransform interface.
+- Pipes have two typical use cases:
+  - transformation: transform input data to the desired form (e.g., from string to integer)
+  - validation: evaluate input data and if valid, simply pass it through unchanged; otherwise, throw an exception
+- `pnpm add class-validator class-transformer`
+- use `ValidationPipe` for validation and @UsePipes decorator to apply the pipe to the controller or method and then use IsNotEmpty, IsString, IsEmail decorators for validation in DTO
+- add validations to check if user email or username already exists in the database by querying the db in service and then throw an exception if user already exists. For exception please use the NestJS built-in exception handling mechanism ex: `HttpException`, `HttpStatus` enum.
+
+## 18 Create Login endpoint
+
+- spec: https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#authentication
+- We can use the user module for login as well. Since registration and login share the same route.
+- Steps:
+  - check if user exists in the db
+  - if user exists, then check if the password is correct using `compare` method from `bcrypt` library
+- Note: password should not be returned in the response. So, modify the response to match the API spec. Also modify the user.entity `@Column({ select: false })` to not return the password in the response for any future queries that will use the user entity. This way by default password field will never be selected.
+  - we have to use `select: ['id', 'email', 'username', 'password', 'image', 'bio'],` in the query to select the password field. This is because by default the password field is not selected. So, if you want to select the password field, you have to explicitly mention it in the query.
+
+## 19 Auth Middleware and Get user API with authentication
+
+- Docs: https://docs.nestjs.com/faq/request-lifecycle#middleware
+- We will use middleware to check if the user is authenticated or not. If the user is authenticated, then only the user can access the protected routes.
+- create middleware: `nest g mi user/middlewares/auth`
+- how to configure middleware: https://docs.nestjs.com/middleware#applying-middleware
+- The middleware is added to app module and not to the user module because we want to apply the middleware to all the routes and not just to the user module routes.
+- Create `ExpressRequest` as an extension of Request interface to add user property to the request object. This way we can access the user object in the request object in the controller.
+- use `verify` method from `jsonwebtoken` library to verify the token and get the user object from the token. If the token is valid, then call the service `findUserById` method to get the user object from the db and then add the user object to the request object and then pass the request
+- export `UserService` from the user.module to use it in the middleware which is at the global leve
+
+  l
+
+## 20 Custom User Decorator
+
+- Docs: https://docs.nestjs.com/graphql/other-features#custom-decorators
+- create a user decorator: `nest g d user/decorators/user`
+- https://docs.nestjs.com/custom-decorators#param-decorators
+- use `createParamDecorator` to create a custom decorator to get the user object from the request object in the controller
+- use the custom decorator in the controller to get the user object from the request object
+
+## 21 Implement AuthGuard to throw Exception
+
+- Docs: https://docs.nestjs.com/guards
+- A guard is a class annotated with the @Injectable() decorator, which implements the CanActivate interface.
+- Guards have a single responsibility. They determine whether a given request will be handled by the route handler or not, depending on certain conditions (like permissions, roles, ACLs, etc.) present at run-time. This is often referred to as authorization. Authorization (and its cousin, authentication, with which it usually collaborates) has typically been handled by middleware in traditional Express applications. Middleware is a fine choice for authentication, since things like token validation and attaching properties to the request object are not strongly connected with a particular route context (and its metadata).
+- But middleware, by its nature, is dumb. It doesn't know which handler will be executed after calling the next() function. On the other hand, Guards have access to the ExecutionContext instance, and thus know exactly what's going to be executed next. They're designed, much like exception filters, pipes, and interceptors, to let you interpose processing logic at exactly the right point in the request/response cycle, and to do so declaratively. This helps keep your code DRY and declarative.
+- create an auth.guard.ts file: `nest g gu user/guards/auth`
+- Note that the guard is applied after the middleware. This is because the middleware will add the user object to the request object and then the guard will use the user object from the request object to check if the user is authenticated or not.
+
+## 22 Update user endpoint
+
+- spec: https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#update-user
+- Note: we have removed validation for the update user endpoint
+
+## 23 Create Article Module, controller, service, entity and migration
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#create-article
+- create article module, controller and service
+- Create Article Entity using spec here: https://realworld-docs.netlify.app/docs/specs/backend-specs/api-response-format/#single-article
+- Create migration: `pnpm db:create src/migrations/CreateArticle`
+- Run migration: `pnpm db:migrate`
+- go to postgresql and check the tables: `\dt`
+- use the command: `\d article` to describe the article table
+
+## 24 Continue working on Create Article Endpoint
+
+- Note that article endpoint needs authentication hence it will need user. Let's build the relation of user and article entities
+- docs: https://typeorm.io/relations#relations
+- https://typeorm.io/many-to-one-one-to-many-relations#
+- OneToMany in user.entity and ManyToOne in article.entity
+- `pnpm db:create src/migrations/AddRelationBwUserAndArticle`
+- create createArticle dto
+- update the service to save dto in table
+- postgresql: `select * from article;` to see the data
+  - use `\x` to toggle expanded view and see the table rows in a formatted way
+
+## 25 Create Article Endpoint - BuildArticleResponse and generateSlug
+
+- update the response to match the API spec
+- use package: `slugify` to generate slug from the title
+  - https://www.npmjs.com/package/slugify
+
+## 26 Get Article by Slug
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#get-article
+  - GET /api/articles/:slug
+- use Param decorator to get the slug from the request object
+  - https://docs.nestjs.com/custom-decorators#param-decorators
+- use the service to get the article by slug
+
+## 27 Delete Article Endpoint
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#delete-article
+  - DELETE /api/articles/:slug, Note: authentication is required
+- before deleting the article, check if the article exists and if user is the owner of the article
+
+## 28 Update Article Endpoint
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#update-article
+  - although API spec says input is optional but we will make it required
+- before updating the article, check if the article exists and if user is the owner of the article
+
+## 29 List Articles Endpoint
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#list-articles
+- We can not use typeorm repository as there are multiple conditions to be checked before fetching the articles. So, we will use query builder to build the query
+- https://orkhan.gitbook.io/typeorm/docs/select-query-builder
+- Query builder: https://orkhan.gitbook.io/typeorm/docs/select-query-builder#what-is-querybuilder
+- Create query builder: https://orkhan.gitbook.io/typeorm/docs/select-query-builder#how-to-create-and-use-a-querybuilder
+- use `andWhere` to add multiple conditions in the query for filtering the articles
+
+## 30 Favorite Article Endpoint
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#favorite-article
+- https://orkhan.gitbook.io/typeorm/docs/many-to-many-relations
+- `pnpm db:create src/migrations/AddFavoritesRelationBwUserAndArticle`
+- `pnpm db:migrate`
+
+## 31 Unfavorite Article
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#unfavorite-article
+
+## 32 List Articles - add favorited user query param
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#list-articles
+
+## 33 Articles response - add favorited field
+
+- check if an article has been favorited or not by the user
+- TODO: add it for get article by slug endpoint as well
+
+## 34 Seeding Data
+
+- for dev environment, we need to seed the data
+- create seed data for tags, users, articles etc
+- some frameworks like Laravel have built-in support for seeding data but in NestJS we have to do it manually
+- add seed script in package.json to run migration using data from seed files
+  - create ormseedconfig and ormseeddatasource files
+- `pnpm db:drop`, `pnpm db:migrate` to create the tablse and `pnpm db:seed` to seed the data into the tables
+
+## 35 Get Profile Endpoint
+
+- https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints/#get-profile
+
+## 36 Follow user endpoint
+
+- Create our own Many to Many relation table using follow.entity.ts
+- `pnpm db:create src/migrations/CreateFollowTable`
+
+## 37 Unfollow user endpoint
+
+## 38 Feed Articles endpoint
+
+- does require authentication
+- GET `/api/articles/feed`
+- get the articles of the users that the current user is following ordered by most recent first
+- can also take `limit` and `offset` query params like the list articles endpoint
+
+## 39 Improving Validation - Custom Validation Pipe
+
+- https://docs.nestjs.com/pipes#custom-pipes
+
+## 40 Integrate Backend with existing Frontend (ex: Remix)
+
+- FE codebase: https://codebase.show/projects/realworld?category=frontend
+- pick recently updated codebase
+  - for me it was remix https://github.com/joma1021/realworld-remix

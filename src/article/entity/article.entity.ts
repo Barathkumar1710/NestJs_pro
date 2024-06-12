@@ -44,6 +44,8 @@ export class ArticleEntity {
 
   // Relation with users
   // ManyToOne relation with Users and Articles 
+  // many users can have many articles
+  // eager : true does not work with querybuilder Hence we use leftJoinAndSelect
   @ManyToOne(() => Users, (user) => user.articles, { eager: true })
   author: Users;
 }

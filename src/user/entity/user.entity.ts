@@ -2,7 +2,7 @@ import { BeforeInsert, Column, Entity, JoinTable, ManyToMany, OneToMany, Primary
 import { hash } from 'bcrypt';
 import { ArticleEntity } from '@app/article/entity/article.entity';
 
-@Entity()
+@Entity({ name: 'users' })
 export class Users {
   
   @PrimaryGeneratedColumn()
