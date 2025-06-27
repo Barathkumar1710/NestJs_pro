@@ -48,3 +48,19 @@ def fetch_hive_data():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+#!/bin/bash
+
+# 1. Run kinit for Kerberos
+kinit g.delrrdev.001.dev@ZONE1.SCBDEV.NET
+
+# 2. Set PYTHONPATH so pyspark can be found
+export SPARK_HOME=/usr/hdp/current/spark2-client
+export PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-*.zip:$PYTHONPATH
+
+# 3. Run the Flask API using python3 directly (not spark-submit)
+echo "Starting Flask API..."
+python3 /CTRLFW/EDMp/LRR/RCL/DELRR/sms/hiveDBConnection/hivedb_api.py
