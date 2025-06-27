@@ -1,66 +1,64 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from hivedbWithClass11 import HiveJDBCReader
+from pyspark.sql import SparkSession
 import json
+import os
+ 
+class HiveJDBCReader:
+    def __init__(self):
+        self.jdbc_url = (
+            "jdbc:hive2://hklvathdp001.hk.standardchartered.com:10000/"
+            ";AuthMech=1"
+            ";KrbRealm=ZONE1.SCBDEV.NET"
+            ";KrbHostFQDN=hklvathdp001.hk.standardchartered.com"
+            ";KrbServiceName=hive"
+            ";KrbAuthType=2"
+            ";principal=hive/hklvathdp001.hk.standardchartered.com@ZONE1.SCBDEV.NET"
+            ";ssl=true"
+            ";sslTrustStore=/etc/hive-jks/hivetrust.jks"
+            ";trustStorePassword=xxxxxxxxx"
+            ";transportMode=http"
+            ";httpPath=cliservice"  
+        )
+ 
+        # Must be an alias for subquery
+        self.table_name = "delrr_daas_dev.cl_sub_ledgr_trade"
+        self.spark = self._create_spark_session()
+ 
+    def _create_spark_session(self):
+        return SparkSession.builder \
+            .appName("Hive JDBC SSL via Kerberos") \
+            .config("spark.ui.enabled", "false") \
+            .master("local") \
+	    .enableHiveSupport() \
+            .getOrCreate()
 
-app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000"])  # CORS for Next.js frontend
+ 
+    def read_data(self):
+        try:
+            df = self.spark.read \
+                .format("jdbc") \
+                .option("url", self.jdbc_url) \
+                .option("dbtable", self.table_name) \
+                .option("driver", "org.apache.hive.jdbc.HiveDriver") \
+                .load()
+ 
+            print("Data successfully pulled from Hive DB")
+            
+            df.createOrReplaceTempView("hive_table")
+            result_df = self.spark.sql("SELECT * FROM delrr_daas_dev.cl_sub_ledgr_trade where ods_val = '2024-09-30' AND country_val='DE' AND tp_sys_val='XX' AND process_id_val LIKE '%SUB_LEDGR_TRADE%' limit 10")
+            result_df.show()
+            records = result_df.toJSON().collect()
+            with open("/CTRLFW/EDMp/LRR/RCL/DELRR/dev/logs/SMS_output/hiveoutput.json", "w") as output_file:
+                for line in records:
+                    output_file.write(line + '\n')
 
-@app.route('/fetch-hive-data', methods=['POST'])
-def fetch_hive_data():
-    data = request.get_json()
-
-    table_name = data.get('table_name')
-    ods_val = data.get('ods_val')
-    version_val = data.get('version_val', '')
-    process_id_val = data.get('process_id_val')
-    country_val = data.get('country_val')
-    limit = data.get('limit', 10)
-
-    # Validate required fields
-    if not all([table_name, ods_val, process_id_val, country_val]):
-        return jsonify({"error": "Missing required fields"}), 400
-
-    try:
-        reader = HiveJDBCReader()
-        spark = reader.spark
-
-        query = f"""
-            SELECT DISTINCT * FROM {table_name}
-            WHERE ods_val = '{ods_val}'
-              AND country_val = '{country_val}'
-              {"AND version_val = '" + version_val + "'" if version_val else ""}
-              AND process_id_val LIKE '%{process_id_val}%'
-            LIMIT {limit}
-        """
-
-        print("Executing query:", query)
-        df = spark.sql(query)
-        records = df.toJSON().collect()
-
-        return jsonify([json.loads(row) for row in records])
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    finally:
-        reader.spark.stop()
-
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
-
-
-
-#!/bin/bash
-
-# 1. Run kinit for Kerberos
-kinit g.delrrdev.001.dev@ZONE1.SCBDEV.NET
-
-# 2. Set PYTHONPATH so pyspark can be found
-export SPARK_HOME=/usr/hdp/current/spark2-client
-export PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-*.zip:$PYTHONPATH
-
-# 3. Run the Flask API using python3 directly (not spark-submit)
-echo "Starting Flask API..."
-python3 /CTRLFW/EDMp/LRR/RCL/DELRR/sms/hiveDBConnection/hivedb_api.py
+            print("Data written to output.json")
+ 
+        except Exception as e:
+            print(f"Error occurred while fetching Hive data: {e}")
+        finally:
+            self.spark.stop()
+            print(" Spark session stopped.")
+ 
+if __name__ == "__main__":
+    reader = HiveJDBCReader()
+    reader.read_data()
